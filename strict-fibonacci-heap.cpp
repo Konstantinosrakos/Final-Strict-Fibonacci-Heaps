@@ -992,7 +992,6 @@ void decrease_key(FiboHeap *myHeap, FiboNode *node, int value)
     {
         if (fix_record != NULL && (fix_record->type != 1 && fix_record->type != 2))
         {
-            cout << "hm" << endl;
             promote_active_node_to_active_root(myHeap, node);
             decrease_rank(myHeap, y);
         }
