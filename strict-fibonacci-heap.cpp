@@ -193,7 +193,6 @@ void remove_from_siblings(FiboNode *child)
 
 void link(FiboNode *child, FiboNode *parent)
 {
-
     remove_from_siblings(child);
     FiboNode *next = parent->left_child;
     FiboNode *previous;
@@ -210,19 +209,100 @@ void link(FiboNode *child, FiboNode *parent)
         previous->right = child;
         next->left = child;
 
-        /*previous = next->left;
-        child->right = next;
-        child->left = previous;
-        previous->right = child;
-        next->left = child;
-*/
-
         if (child->active != NULL && child->active->flag == true)
         {
             parent->left_child = child;
         }
     }
     child->parent = parent;
+}
+
+void remove_from_siblings_root(FiboHeap *myHeap, FiboNode *child)
+{
+    if (child == myHeap->linkable_child)
+    {
+        if (is_passive_linkable(myHeap->linkable_child->right))
+        {
+            myHeap->linkable_child = myHeap->linkable_child->right;
+        }
+        else
+        {
+            myHeap->linkable_child = NULL;
+        }
+    }
+    else if (child == myHeap->non_linkable_child)
+    {
+        if (!is_passive_linkable(myHeap->non_linkable_child->right))
+        {
+            myHeap->non_linkable_child = myHeap->non_linkable_child->right;
+        }
+        else
+        {
+            myHeap->non_linkable_child = NULL;
+        }
+    }
+    remove_from_siblings(child);
+}
+
+void link_to_root(FiboHeap *myHeap, FiboNode *child, FiboNode *parent)
+{
+
+    remove_from_siblings_root(myHeap, child);
+    FiboNode *next;
+    FiboNode *previous;
+
+    if (parent->left_child == NULL)
+    {
+        parent->left_child = child;
+        if (is_passive_linkable(child))
+            myHeap->linkable_child = child;
+        else if (!is_passive_linkable(child))
+            myHeap->non_linkable_child = child;
+        return;
+    }
+
+    if (is_passive_linkable(child))
+    {
+        if (myHeap->linkable_child != NULL)
+        {
+            next = myHeap->linkable_child->right;
+            previous = myHeap->linkable_child;
+        }
+        else
+        {
+            next = parent->left_child;
+            previous = parent->left_child->left;
+            myHeap->linkable_child = child;
+        }
+    }
+    else if (is_active(child))
+    {
+        next = parent->left_child;
+        previous = parent->left_child->left;
+        parent->left_child = child;
+    }
+    else
+    {
+        if (myHeap->non_linkable_child != NULL)
+        {
+            next = myHeap->non_linkable_child->right;
+            previous = myHeap->non_linkable_child;
+        }
+        else
+        {
+            if (myHeap->linkable_child != NULL)
+            {
+                next = myHeap->linkable_child;
+                previous = myHeap->linkable_child->left;
+            }
+            else
+            {
+                next = parent->left_child;
+                previous = parent->left_child->left;
+            }
+            myHeap->non_linkable_child = child;
+        }
+    }
 }
 
 void mark_as_active(FiboHeap *myHeap, FiboNode *node)

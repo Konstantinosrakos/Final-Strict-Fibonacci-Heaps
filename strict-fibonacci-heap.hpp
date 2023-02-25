@@ -61,10 +61,11 @@ struct FiboHeap
     struct FiboNode *root;
     struct active_record *active;
     struct FiboNode *non_linkable_child;
+    struct FiboNode *linkable_child;
     struct FiboNode *Q_head;
     struct rank_list_record *rank_list;
     struct fix_list_record *fix_list[6];
 
     FiboHeap() : size(0), root(nullptr), active(nullptr),
-                 non_linkable_child(nullptr), Q_head(nullptr), rank_list(nullptr) {}
+                 non_linkable_child(nullptr), linkable_child(nullptr), Q_head(nullptr), rank_list(nullptr) {}
 };
