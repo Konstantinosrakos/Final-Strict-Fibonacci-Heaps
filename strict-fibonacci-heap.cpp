@@ -191,8 +191,105 @@ void remove_from_siblings(FiboNode *child)
     child->parent = NULL;
 }
 
-void link(FiboNode *child, FiboNode *parent)
+void remove_from_siblings_root(FiboHeap *myHeap, FiboNode *child)
 {
+    if (myHeap->non_linkable_child == child)
+    {
+        if (child != child->right && !is_active(child) && !is_passive_linkable(child))
+        {
+            myHeap->non_linkable_child = child->right;
+        }
+        else if (child != child->left && is_active(child->left))
+        {
+            myHeap->non_linkable_child = child->left;
+        }
+        else
+        {
+            myHeap->non_linkable_child = NULL;
+        }
+    }
+    remove_from_siblings(child);
+}
+
+void link_to_root(FiboHeap *myHeap, FiboNode *child, FiboNode *parent)
+{
+    if (parent->left_child == NULL)
+    {
+        parent->left_child = child;
+        child->parent = parent;
+        if (!is_passive_linkable(child))
+        {
+            myHeap->non_linkable_child = child;
+        }
+        return;
+    }
+
+    FiboNode *next, *previous;
+    if (is_active(child))
+    {
+        if (myHeap->non_linkable_child == NULL)
+        {
+            myHeap->non_linkable_child = child;
+            next = parent->left_child;
+        }
+        else
+        {
+            if (is_active(parent->left_child))
+            {
+                next = parent->left_child;
+            }
+            else
+            {
+                next = myHeap->non_linkable_child;
+            }
+        }
+    }
+    else if (is_passive_linkable(child))
+    {
+        next = parent->left_child;
+        cout << child->item << endl;
+    }
+    else
+    {
+        cout << "hi";
+        if (myHeap->non_linkable_child == NULL)
+        {
+            cout << "uo";
+            myHeap->non_linkable_child = child;
+            next = parent->left_child;
+        }
+        else
+        {
+            if (is_active(myHeap->non_linkable_child))
+            {
+                next = myHeap->non_linkable_child->right;
+                myHeap->non_linkable_child = child;
+            }
+            else
+            {
+                next = myHeap->non_linkable_child;
+                myHeap->non_linkable_child = child;
+            }
+        }
+    }
+
+    previous = next->left;
+    child->right = next;
+    child->left = previous;
+    previous->right = child;
+    next->left = child;
+
+    if (child->active != NULL && child->active->flag == true)
+    {
+        parent->left_child = child;
+    }
+
+    child->parent = parent;
+}
+
+void link(FiboHeap *myHeap, FiboNode *child, FiboNode *parent)
+{
+
     remove_from_siblings(child);
     FiboNode *next = parent->left_child;
     FiboNode *previous;
@@ -215,94 +312,6 @@ void link(FiboNode *child, FiboNode *parent)
         }
     }
     child->parent = parent;
-}
-
-void remove_from_siblings_root(FiboHeap *myHeap, FiboNode *child)
-{
-    if (child == myHeap->linkable_child)
-    {
-        if (is_passive_linkable(myHeap->linkable_child->right))
-        {
-            myHeap->linkable_child = myHeap->linkable_child->right;
-        }
-        else
-        {
-            myHeap->linkable_child = NULL;
-        }
-    }
-    else if (child == myHeap->non_linkable_child)
-    {
-        if (!is_passive_linkable(myHeap->non_linkable_child->right))
-        {
-            myHeap->non_linkable_child = myHeap->non_linkable_child->right;
-        }
-        else
-        {
-            myHeap->non_linkable_child = NULL;
-        }
-    }
-    remove_from_siblings(child);
-}
-
-void link_to_root(FiboHeap *myHeap, FiboNode *child, FiboNode *parent)
-{
-
-    remove_from_siblings_root(myHeap, child);
-    FiboNode *next;
-    FiboNode *previous;
-
-    if (parent->left_child == NULL)
-    {
-        parent->left_child = child;
-        if (is_passive_linkable(child))
-            myHeap->linkable_child = child;
-        else if (!is_passive_linkable(child))
-            myHeap->non_linkable_child = child;
-        return;
-    }
-
-    if (is_passive_linkable(child))
-    {
-        if (myHeap->linkable_child != NULL)
-        {
-            next = myHeap->linkable_child->right;
-            previous = myHeap->linkable_child;
-        }
-        else
-        {
-            next = parent->left_child;
-            previous = parent->left_child->left;
-            myHeap->linkable_child = child;
-        }
-    }
-    else if (is_active(child))
-    {
-        next = parent->left_child;
-        previous = parent->left_child->left;
-        parent->left_child = child;
-    }
-    else
-    {
-        if (myHeap->non_linkable_child != NULL)
-        {
-            next = myHeap->non_linkable_child->right;
-            previous = myHeap->non_linkable_child;
-        }
-        else
-        {
-            if (myHeap->linkable_child != NULL)
-            {
-                next = myHeap->linkable_child;
-                previous = myHeap->linkable_child->left;
-            }
-            else
-            {
-                next = parent->left_child;
-                previous = parent->left_child->left;
-            }
-            myHeap->non_linkable_child = child;
-        }
-    }
 }
 
 void mark_as_active(FiboHeap *myHeap, FiboNode *node)
@@ -362,7 +371,7 @@ void add_to_fix_list(FiboHeap *myHeap, fix_list_record *fix_record, int part)
         fix_record->left = rank->fixes[part];
     }
 
-    myHeap->fix_list[part] = fix_record;
+    myHeap->fix_list[part] = fix_record->left;
     fix_record->type = part;
     fix_record->node->fix = fix_record;
     add_to_rank_list(myHeap, fix_record, part);
@@ -712,7 +721,7 @@ struct FiboHeap *meld(FiboHeap *x, FiboHeap *y)
     FiboNode *v = y->root;
 
     x_is_smaller(u, v);
-    link(v, u);
+    link(new_heap, v, u);
 
     new_heap->root = u;
     if (new_heap->Q_head != NULL)
@@ -738,15 +747,20 @@ struct FiboHeap *meld(FiboHeap *x, FiboHeap *y)
         new_heap->Q_head->q_prev = y->Q_head;
     }
     bool result = false;
+    loss_reduction(new_heap);
 
-    do
+    int count_root = 0;
+    int count_degree = 0;
+
+    while (count_root < 1 || count_degree < 1)
     {
-        result = active_root_reduction(new_heap);
-    } while (result);
-    do
-    {
-        result = root_degree_reduction(new_heap);
-    } while (result);
+        if (count_root < 1 && active_root_reduction(new_heap))
+            count_root++;
+        else if (count_degree < 1 && root_degree_reduction(new_heap))
+            count_degree++;
+        else
+            break;
+    }
 
     return new_heap;
 }
@@ -762,7 +776,7 @@ struct FiboHeap *insert_first_node(int value)
 struct FiboHeap *insert_node(FiboHeap *myHeap, int value)
 {
     FiboHeap *new_heap = insert_first_node(value);
-
+    cout << "Insert " << value << endl;
     myHeap = meld(myHeap, new_heap);
 
     return myHeap;
@@ -777,11 +791,15 @@ void loss_to_active_root(FiboHeap *myHeap, fix_list_record *fix_record)
 
 void add_loss(FiboHeap *myHeap, FiboNode *node)
 {
-    if (node->fix != NULL && node->fix->type < 2)
+    if (node->fix != NULL && node->fix->type < 3)
     {
         return;
     }
 
+    if (!is_active(node))
+    {
+        return;
+    }
     node->loss++;
     if (!is_active(node))
     {
@@ -827,48 +845,6 @@ void loss_reduction(FiboHeap *myHeap)
         one_loss_reduction(myHeap);
 }
 
-void move_passive_linkable_right(FiboNode *node)
-{
-    if (node == NULL)
-    {
-        return;
-    }
-
-    FiboNode *step = node->left;
-    FiboNode *flag;
-
-    while (!is_active(step))
-    {
-        cout << "im stuck :)" << endl;
-        if (is_passive_linkable(step))
-        {
-            // Remove the node from its current position
-            step->left->right = step->right;
-            step->right->left = step->left;
-
-            flag = step->left;
-            // Insert the node before the first x node
-            step->left = node->left;
-            step->right = node;
-            node->left->right = step;
-            node->left = step;
-        }
-        else
-        {
-            flag = NULL;
-        }
-
-        if (flag != NULL)
-        {
-            step = flag;
-        }
-        else
-        {
-            step = step->left;
-        }
-    }
-}
-
 // Transformations
 
 bool active_root_reduction(FiboHeap *myHeap)
@@ -884,9 +860,10 @@ bool active_root_reduction(FiboHeap *myHeap)
 
     if (!check_fix_records(myHeap->fix_list[1], myHeap->fix_list[1]->right))
     {
-        // cout << "el problemo" << endl;
+        cout << "el problemo" << endl;
         active_fix_1 = remove_from_fix_list(myHeap, myHeap->fix_list[1], 1);
         add_to_fix_list(myHeap, active_fix_1, 2);
+        active_root_reduction(myHeap);
         return false;
     }
 
@@ -899,20 +876,22 @@ bool active_root_reduction(FiboHeap *myHeap)
     if (active_fix_1->node->item < active_fix_2->node->item)
     {
 
-        link(active_fix_2->node, active_fix_1->node);
+        link(myHeap, active_fix_2->node, active_fix_1->node);
         promote_active_root(myHeap, active_fix_1);
+
         if (active_fix_1->node->left_child != NULL)
         {
+
             z = active_fix_1->node->left_child->left;
             if (!is_active(z))
             {
-                link(z, myHeap->root);
+                link(myHeap, z, myHeap->root);
             }
         }
     }
     else
     {
-        link(active_fix_1->node, active_fix_2->node);
+        link(myHeap, active_fix_1->node, active_fix_2->node);
         promote_active_root(myHeap, active_fix_2);
 
         if (active_fix_2->node->left_child != NULL)
@@ -920,7 +899,7 @@ bool active_root_reduction(FiboHeap *myHeap)
             z = active_fix_2->node->left_child->left;
             if (!is_active(z))
             {
-                link(z, myHeap->root);
+                link(myHeap, z, myHeap->root);
             }
         }
     }
@@ -961,8 +940,9 @@ bool root_degree_reduction(FiboHeap *myHeap)
     promote_active_root(myHeap, new_fix);
     myHeap->root->left_child = x;
 
-    link(z, y);
-    link(y, x);
+    link(myHeap, z, y);
+    link(myHeap, y, x);
+    link(myHeap, x, myHeap->root);
 
     return true;
 }
@@ -981,7 +961,7 @@ void one_loss_reduction(FiboHeap *myHeap)
     decrease_rank(myHeap, y);
     add_loss(myHeap, y);
 
-    link(x, myHeap->root);
+    link(myHeap, x, myHeap->root);
 
     cout << "One loss reduction on " << x->item << endl;
 }
@@ -1010,7 +990,7 @@ void two_loss_reduction(FiboHeap *myHeap)
         x = fix_record_1->node;
         y = fix_record_2->node;
         z = y->parent;
-        link(y, x);
+        link(myHeap, y, x);
         increase_rank(myHeap, x);
         x->loss = 0;
         y->loss = 0;
@@ -1022,7 +1002,7 @@ void two_loss_reduction(FiboHeap *myHeap)
         x = fix_record_2->node;
         y = fix_record_1->node;
         z = y->parent;
-        link(y, x);
+        link(myHeap, y, x);
         increase_rank(myHeap, x);
         x->loss = 0;
         y->loss = 0;
@@ -1065,8 +1045,9 @@ void delete_minumum(FiboHeap *myHeap)
         make_passive(myHeap, new_root);
     }
 
-    FiboNode *step = new_root->left_child;
+    FiboNode *step;
 
+    step = new_root->left_child;
     if (step != NULL)
     {
         do
@@ -1086,14 +1067,11 @@ void delete_minumum(FiboHeap *myHeap)
             step = step->right;
         } while (step != new_root->left_child);
     }
-
     step = old_root->left_child;
     while (old_root->left_child != NULL)
     {
-        link(old_root->left_child, new_root);
+        link(myHeap, old_root->left_child, new_root);
     }
-
-    // move_passive_linkable_right(new_root->left_child);
 
     FiboNode *q_node;
     FiboNode *q_child;
@@ -1107,9 +1085,9 @@ void delete_minumum(FiboHeap *myHeap)
             {
                 if (q_node->left_child != NULL && !is_active(q_node->left_child->left))
                 {
-                    cout << "Link to root:" << q_node->item << endl;
-                    if (q_node->left_child->left->parent != NULL)
-                        link(q_node->left_child->left, new_root);
+                    cout << "Link to root:" << q_node->left_child->item << endl;
+
+                    link(myHeap, q_node->left_child->left, new_root);
                     add_loss(myHeap, q_node);
                 }
                 else
@@ -1121,6 +1099,7 @@ void delete_minumum(FiboHeap *myHeap)
     }
 
     loss_reduction(myHeap);
+    FiboHeap *heap3 = myHeap;
 
     while (1)
     {
@@ -1131,7 +1110,7 @@ void delete_minumum(FiboHeap *myHeap)
         else
             break;
     }
-    active_root_reduction(myHeap);
+    // active_root_reduction(myHeap);
     myHeap->size--;
 }
 
@@ -1156,7 +1135,7 @@ void decrease_key(FiboHeap *myHeap, FiboNode *node, int value)
         fix_record = remove_from_fix_list(myHeap, node->fix, node->fix->type);
     }
 
-    link(node, myHeap->root);
+    link(myHeap, node, myHeap->root);
 
     if (is_active(node))
     {
@@ -1195,41 +1174,46 @@ void delete_item(FiboHeap *myHeap, FiboNode *node)
 int main()
 {
     FiboNode *node;
-    FiboHeap *heap3 = insert_first_node(5);
+    FiboHeap *heap3 = insert_first_node(9);
 
-    heap3 = insert_node(heap3, 7);
-    heap3 = insert_node(heap3, 9);
-
-    heap3 = insert_node(heap3, 14);
-    heap3 = insert_node(heap3, 12);
-    heap3 = insert_node(heap3, 8);
-    heap3 = insert_node(heap3, 10);
-    heap3 = insert_node(heap3, 6);
     heap3 = insert_node(heap3, 1);
-    heap3 = insert_node(heap3, 3);
-    heap3 = insert_node(heap3, 13);
+    heap3 = insert_node(heap3, 17);
+    heap3 = insert_node(heap3, 12);
+    heap3 = insert_node(heap3, 16);
+    heap3 = insert_node(heap3, 6);
+    heap3 = insert_node(heap3, 19);
+    heap3 = insert_node(heap3, 5);
+    heap3 = insert_node(heap3, 14);
     heap3 = insert_node(heap3, 0);
-
+    heap3 = insert_node(heap3, 18);
+    heap3 = insert_node(heap3, 10);
+    heap3 = insert_node(heap3, 8);
+    heap3 = insert_node(heap3, 3);
+    heap3 = insert_node(heap3, 15);
+    heap3 = insert_node(heap3, 11);
+    heap3 = insert_node(heap3, 2);
+    heap3 = insert_node(heap3, 7);
     heap3 = insert_node(heap3, 4);
 
-    heap3 = insert_node(heap3, 11);
+    node = heap3->root->left_child->right->left_child->left_child;
+    cout << node->item << endl;
+    decrease_key(heap3, node, -3);
+    delete_minumum(heap3);
+    for (int i = 1; i < 6; i++)
+    {
+        if (heap3->fix_list[i] != NULL)
+        {
+            fix_list_record *temp = heap3->fix_list[i];
+            cout << "part " << i << endl;
+            do
+            {
+                cout << temp->node->item << "(" << temp->rank->rank << ") ";
 
-    heap3 = insert_node(heap3, 2);
-
-    delete_minumum(heap3);
-    delete_minumum(heap3);
-    delete_minumum(heap3);
-    delete_minumum(heap3);
-    delete_minumum(heap3);
-    delete_minumum(heap3);
-    delete_minumum(heap3);
-    node = heap3->root->left_child->right->left_child;
-
-    decrease_key(heap3, node, 5);
-    delete_minumum(heap3);
+                temp = temp->right;
+            } while (temp != heap3->fix_list[i]);
+        }
+        cout << endl;
+    }
     printFiboTree(heap3->root);
-    // print_fibonode(heap3->root->left_child->right);
     return 1;
-
-    // delete_minumum(heap3);
 }
