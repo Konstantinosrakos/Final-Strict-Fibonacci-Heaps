@@ -1,5 +1,6 @@
 #include <iostream>
 #include "strict-fibonacci-heap.hpp"
+#include <chrono>
 
 using namespace std;
 
@@ -461,7 +462,7 @@ void add_to_rank_list(FiboHeap *myHeap, fix_list_record *fix_record, int part)
 void remove_from_rank_list(FiboHeap *myHeap, fix_list_record *fix_record, int part)
 {
 
-    if (fix_record->right->rank == fix_record->rank && fix_record->right != fix_record)
+    if (fix_record->right->rank == fix_record->rank && fix_record->right != fix_record && fix_record->rank->fixes[part] == fix_record)
     {
         fix_record->rank->fixes[part] = fix_record->right;
     }
@@ -541,7 +542,7 @@ void promote_active_root(FiboHeap *myHeap, fix_list_record *fix_record)
     rank_list_record *new_rank = fix_record->rank->inc;
     if (new_rank == NULL)
     {
-        new_rank = create_rank_record(fix_record->rank, fix_record->rank->rank + 1 - (fix_record->rank->rank));
+        new_rank = create_rank_record(fix_record->rank, 1);
     }
 
     fix_record->rank = new_rank;
@@ -657,11 +658,12 @@ void increase_rank(FiboHeap *myHeap, FiboNode *node)
 
     if (new_rank == NULL)
     {
-        new_rank = create_rank_record(node->rank, node->rank->rank + 1);
+        new_rank = create_rank_record(node->rank, 1);
     }
 
     node->rank = new_rank;
     node->rank->ref_count++;
+    cout << " HIIIIIIIIII" << endl;
 }
 
 /* Heap utilities*/
@@ -1176,6 +1178,32 @@ int main()
     FiboNode *node;
     FiboHeap *heap3 = insert_first_node(9);
 
+    auto start_time = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < 10000000; i++)
+    {
+        heap3 = insert_node(heap3, i);
+    }
+
+    delete_minumum(heap3);
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+    std::cout << "Time taken by program: " << duration.count() / 1000000.0 << " seconds" << std::endl;
+    for (int i = 1; i < 6; i++)
+    {
+        if (heap3->fix_list[i] != NULL)
+        {
+            fix_list_record *temp = heap3->fix_list[i];
+            cout << "part " << i << endl;
+            do
+            {
+                cout << temp->node->item << "(" << temp->rank->rank << ") ";
+
+                temp = temp->right;
+            } while (temp != heap3->fix_list[i]);
+        }
+        cout << endl;
+    }
+    return 1;
     heap3 = insert_node(heap3, 1);
     heap3 = insert_node(heap3, 17);
     heap3 = insert_node(heap3, 12);
@@ -1199,21 +1227,10 @@ int main()
     cout << node->item << endl;
     decrease_key(heap3, node, -3);
     delete_minumum(heap3);
-    for (int i = 1; i < 6; i++)
-    {
-        if (heap3->fix_list[i] != NULL)
-        {
-            fix_list_record *temp = heap3->fix_list[i];
-            cout << "part " << i << endl;
-            do
-            {
-                cout << temp->node->item << "(" << temp->rank->rank << ") ";
+    increase_rank(heap3, heap3->root->left_child);
 
-                temp = temp->right;
-            } while (temp != heap3->fix_list[i]);
-        }
-        cout << endl;
-    }
+    cout << heap3->root->left_child->rank->rank << endl;
+
     printFiboTree(heap3->root);
     return 1;
 }
